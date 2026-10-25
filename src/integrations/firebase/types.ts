@@ -17,6 +17,7 @@ export interface Organization {
   id: string;
   name: string;
   slug: string;
+  custom_domain?: string | null;
   status: "active" | "suspended" | "trial";
   logo_url?: string | null;
   whatsapp_number?: string | null;

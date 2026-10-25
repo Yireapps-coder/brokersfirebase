@@ -6,6 +6,7 @@ import {
 import {
   getOrganizationById,
   getOrganizationBySlug,
+  getOrganizationByDomain,
 } from "@/integrations/firebase/services/organizations.service";
 import { getProfileById } from "@/integrations/firebase/services/team.service";
 import type { Organization, Property } from "@/integrations/firebase/types";
@@ -62,9 +63,36 @@ export function propertyToCard(p: Property): PropertyCardData {
 }
 
 export async function getPublicOrg(): Promise<PublicOrg | null> {
+  // 1. Detección automática por dominio personalizado en el navegador (ej: alduncinneri.com)
+  if (typeof window !== "undefined" && window.location?.hostname) {
+    const host = window.location.hostname.toLowerCase().trim();
+
+    // Si el dominio no es localhost ni el subdominio genérico de Cloudflare/Firebase
+    if (
+      host &&
+      host !== "localhost" &&
+      host !== "127.0.0.1" &&
+      !host.endsWith(".web.app") &&
+      !host.endsWith(".firebaseapp.com") &&
+      !host.endsWith(".pages.dev")
+    ) {
+      const orgByDomain = await getOrganizationByDomain(host);
+      if (orgByDomain) return orgByDomain;
+    }
+
+    // 2. Si se accede por subdominio (ej: agencia.dominio.com o slug.pages.dev)
+    const parts = host.split(".");
+    if (parts.length > 2 && parts[0] !== "www") {
+      const orgBySlug = await getOrganizationBySlug(parts[0]);
+      if (orgBySlug) return orgBySlug;
+    }
+  }
+
+  // 3. Fallback a la organización predeterminada
   const defaultOrgId = "agencia_principal";
   const org = await getOrganizationById(defaultOrgId);
   if (org) return org;
+
   return await getOrganizationBySlug("inmobiliaria");
 }
 

@@ -308,7 +308,19 @@ function AgenciaSettingsPage() {
     if (!organization) return;
     setSaving(true);
     try {
-      await updateOrganization(organization.id, { name: name.trim() || organization.name, whatsapp_number: whatsapp.trim() || null, phone: phone.trim() || null, address: address.trim() || null, hero_overlay_opacity: overlayOpacity, hero_overlay_color: overlayColor, facebook_url: normalizeUrl(facebookUrl), instagram_url: normalizeUrl(instagramUrl), linkedin_url: normalizeUrl(linkedinUrl), tiktok_url: normalizeUrl(tiktokUrl) });
+      await updateOrganization(organization.id, {
+        name: name.trim() || organization.name,
+        whatsapp_number: whatsapp.trim() || null,
+        phone: phone.trim() || null,
+        address: address.trim() || null,
+        custom_domain: isSuperAdmin ? (customDomain.trim().toLowerCase() || null) : organization.custom_domain,
+        hero_overlay_opacity: overlayOpacity,
+        hero_overlay_color: overlayColor,
+        facebook_url: normalizeUrl(facebookUrl),
+        instagram_url: normalizeUrl(instagramUrl),
+        linkedin_url: normalizeUrl(linkedinUrl),
+        tiktok_url: normalizeUrl(tiktokUrl),
+      });
       await refresh();
       toast.success("Datos guardados");
     } catch (err) {
@@ -557,7 +569,7 @@ function AgenciaSettingsPage() {
                   Solo el super administrador puede configurar el dominio. El
                   portal público responderá a este dominio; también debes
                   conectarlo en la configuración del proyecto y apuntar el DNS a
-                  Lovable para que funcione.
+                  Cloudflare Pages para que funcione.
                 </p>
               </div>
             )}
