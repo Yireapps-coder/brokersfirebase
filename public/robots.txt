@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+
+Disallow: /crm
+Disallow: /admin
+Disallow: /login

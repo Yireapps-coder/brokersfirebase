@@ -1,0 +1,609 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // This security rules file assumes the following data structures:
+    //
+    // Collection: organizations
+    // Document ID: {orgId}
+    // Fields:
+    //   - id: string (required, immutable) - Document identifier
+    //   - name: string (required, 1-150 chars) - Organization / agency name
+    //   - slug: string (required, 1-100 chars) - Unique agency slug for subdomains / URL paths
+    //   - status: string (required, ['active', 'suspended', 'trial']) - Operational status
+    //   - logo_url: string (optional, <= 2000 chars) - Agency branding logo
+    //   - whatsapp_number: string (optional, <= 30 chars) - Contact WhatsApp
+    //   - phone: string (optional, <= 30 chars) - Contact telephone
+    //   - address: string (optional, <= 300 chars) - Agency physical address
+    //   - primary_color: string (optional, <= 30 chars) - Theme branding color
+    //   - theme: map (optional) - UI configuration map
+    //   - hero_image_url: string (optional, <= 2000 chars) - Homepage hero banner
+    //   - hero_overlay_opacity: number (optional, 0.0 - 1.0) - Hero opacity
+    //   - hero_overlay_color: string (optional, <= 30 chars) - Overlay color hex
+    //   - facebook_url, instagram_url, linkedin_url, tiktok_url, privacy_url, terms_url: string (optional, <= 2000 chars)
+    //   - created_at: string (required, immutable, ISO 8601 date string)
+    //   - updated_at: string (optional, ISO 8601 date string)
+    //
+    // Collection: profiles
+    // Document ID: {userId} (matches Firebase Auth UID)
+    // Fields:
+    //   - id: string (required, immutable, matches userId) - Firebase Auth UID
+    //   - email: string (required, valid email, <= 100 chars) - Agent email
+    //   - full_name: string (required, 1-150 chars) - Agent full name
+    //   - phone: string (optional, <= 30 chars) - Agent direct phone
+    //   - organization_id: string (required, 1-100 chars) - Tenant organization foreign key
+    //   - role: string (required, ['super_admin', 'tenant_admin', 'agent']) - Role for RBAC
+    //   - status: string (required, ['active', 'inactive']) - Account active state
+    //   - avatar_url: string (optional, <= 2000 chars) - Profile picture URL
+    //   - created_at: string (required, immutable, ISO 8601 date string)
+    //   - updated_at: string (optional, ISO 8601 date string)
+    //
+    // Collection: properties
+    // Document ID: {propertyId}
+    // Fields:
+    //   - id: string (required, immutable, matches document ID)
+    //   - organization_id: string (required, immutable on update, 1-100 chars)
+    //   - agent_id: string (optional, <= 100 chars)
+    //   - owner_id: string (optional, <= 100 chars)
+    //   - internal_id: string (optional, <= 100 chars)
+    //   - folio: string (optional, <= 100 chars)
+    //   - slug: string (required, 1-200 chars)
+    //   - title: string (required, 1-200 chars)
+    //   - description: string (optional, <= 10000 chars)
+    //   - property_type: string (required, ['casa','departamento','terreno','local','oficina','bodega','rancho','otro'])
+    //   - operation_type: string (required, ['venta','renta','ambas'])
+    //   - status: string (required, ['disponible','apartada','vendida','rentada','baja'])
+    //   - price, sale_price, rent_price, maintenance_fee_monthly: number (optional)
+    //   - currency: string (required, <= 10 chars)
+    //   - sale_currency, rent_currency: string (optional, <= 10 chars)
+    //   - publish_prices: bool (required)
+    //   - bedrooms, bathrooms, half_bathrooms, parking_spaces, construction_area_m2, land_area_m2, floors_in_building, unit_floor, year_built: number (optional)
+    //   - address_street, address_ext_number, address_int_number, colonia, city, state, zip_code, country, state_id, city_id: string (optional, <= 200 chars)
+    //   - public_latitude, public_longitude: number (optional)
+    //   - location_precision: string (optional, ['exact','approximate'])
+    //   - show_exact_location: bool (optional)
+    //   - amenity_ids: list (optional, <= 100 items)
+    //   - images: list (optional, <= 50 items)
+    //   - video_url, virtual_tour_url: string (optional, <= 2000 chars)
+    //   - featured: bool (optional)
+    //   - views_count: number (optional)
+    //   - created_at: string (required, immutable, ISO 8601 date string)
+    //   - updated_at: string (optional, ISO 8601 date string)
+    //
+    // Collection: contacts
+    // Document ID: {contactId}
+    // Fields:
+    //   - id: string (optional/required, immutable, <= 100 chars)
+    //   - organization_id: string (required, immutable on update, 1-100 chars)
+    //   - agent_id: string (optional, <= 100 chars)
+    //   - full_name: string (required, 1-150 chars)
+    //   - phone: string (optional, <= 30 chars)
+    //   - email: string (optional, <= 100 chars)
+    //   - source: string (required, ['portal_web','facebook','directo','referido','otro'])
+    //   - status: string (required, ['nuevo','en_seguimiento','calificado','cerrado','descartado'])
+    //   - interest_type: string (optional, ['compra','renta','venta'])
+    //   - budget_min, budget_max: number (optional)
+    //   - property_id: string (optional, <= 100 chars)
+    //   - notes: string (optional, <= 3000 chars)
+    //   - created_at: string (required, immutable, ISO 8601 date string)
+    //   - updated_at: string (optional, ISO 8601 date string)
+    //
+    // Collection: property_owners
+    // Document ID: {ownerId}
+    // Fields:
+    //   - id: string (optional/required, immutable, <= 100 chars)
+    //   - organization_id: string (required, immutable on update, 1-100 chars)
+    //   - full_name: string (required, 1-150 chars)
+    //   - phone: string (optional, <= 30 chars)
+    //   - email: string (optional, <= 100 chars)
+    //   - tax_id: string (optional, <= 50 chars)
+    //   - notes: string (optional, <= 3000 chars)
+    //   - created_at: string (required, immutable, ISO 8601 date string)
+    //
+    // Collection: activities
+    // Document ID: {activityId}
+    // Fields:
+    //   - id: string (optional/required, immutable, <= 100 chars)
+    //   - organization_id: string (required, immutable on update, 1-100 chars)
+    //   - agent_id, assigned_to, property_id, contact_id, owner_id: string (optional, <= 100 chars)
+    //   - type: string (required, ['llamada','reunion','visita','seguimiento','tarea','otro'])
+    //   - status: string (required, ['pendiente','completada','cancelada'])
+    //   - scheduled_at, completed_at: string (optional, <= 50 chars)
+    //   - description: string (required, 1-2000 chars)
+    //   - notes: string (optional, <= 3000 chars)
+    //   - created_at: string (required, immutable, ISO 8601 date string)
+    //
+    // Collection: property_documents
+    // Document ID: {docId}
+    // Fields:
+    //   - id: string (optional/required, immutable, <= 100 chars)
+    //   - organization_id: string (required, immutable on update, 1-100 chars)
+    //   - property_id: string (required, 1-100 chars)
+    //   - category: string (required, 1-100 chars)
+    //   - document_type: string (required, 1-100 chars)
+    //   - file_path: string (optional, <= 500 chars)
+    //   - file_url: string (optional, <= 2000 chars)
+    //   - status: string (required, ['pendiente','en_revision','aprobado','rechazado'])
+    //   - notes: string (optional, <= 3000 chars)
+    //   - uploaded_by: string (optional, <= 100 chars)
+    //   - uploaded_at: string (optional, <= 50 chars)
+    //   - created_at: string (required, immutable, ISO 8601 date string)
+    //
+    // Collection: property_inquiries
+    // Document ID: {inquiryId}
+    // Fields:
+    //   - id: string (optional/required, immutable, <= 100 chars)
+    //   - organization_id: string (required, immutable on update, 1-100 chars)
+    //   - property_id: string (required, 1-100 chars)
+    //   - contact_id: string (optional, <= 100 chars)
+    //   - name: string (required, 1-100 chars)
+    //   - phone: string (required, 1-30 chars)
+    //   - email: string (optional, <= 100 chars)
+    //   - message: string (optional, <= 2000 chars)
+    //   - created_at: string (required, immutable, ISO 8601 date string)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Core Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function currentUserProfile() {
+      return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data;
+    }
+
+    function hasCurrentUserProfile() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/profiles/$(request.auth.uid));
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        (request.auth.token != null && request.auth.token.role == 'super_admin') ||
+        (hasCurrentUserProfile() && currentUserProfile().role == 'super_admin')
+      );
+    }
+
+    function isTenantAdmin(orgId) {
+      return isAuthenticated() && (
+        isSuperAdmin() ||
+        (hasCurrentUserProfile() &&
+         currentUserProfile().organization_id == orgId &&
+         currentUserProfile().role == 'tenant_admin')
+      );
+    }
+
+    function isOrgMember(orgId) {
+      return isAuthenticated() && (
+        isSuperAdmin() ||
+        (hasCurrentUserProfile() && currentUserProfile().organization_id == orgId)
+      );
+    }
+
+    // Generic schema helpers
+    function isValidEmail(email) {
+      return email is string &&
+        email.size() <= 100 &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidOptEmail(data, field) {
+      return !(field in data) || data[field] == null || isValidEmail(data[field]);
+    }
+
+    function isOptString(data, field, maxLen) {
+      return !(field in data) || data[field] == null ||
+        (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    function isReqString(data, field, minLen, maxLen) {
+      return (field in data) &&
+        data[field] is string &&
+        data[field].size() >= minLen &&
+        data[field].size() <= maxLen;
+    }
+
+    function isOptNumber(data, field) {
+      return !(field in data) || data[field] == null || data[field] is number;
+    }
+
+    function isOptBool(data, field) {
+      return !(field in data) || data[field] == null || data[field] is bool;
+    }
+
+    function isOptList(data, field, maxItems) {
+      return !(field in data) || data[field] == null ||
+        (data[field] is list && data[field].size() <= maxItems);
+    }
+
+    function isOptMap(data, field) {
+      return !(field in data) || data[field] == null || data[field] is map;
+    }
+
+    // ===============================================================
+    // Domain Validator Functions
+    // ===============================================================
+
+    function isValidOrganization(data) {
+      return isReqString(data, 'id', 1, 100) &&
+        isReqString(data, 'name', 1, 150) &&
+        isReqString(data, 'slug', 1, 100) &&
+        isReqString(data, 'created_at', 1, 50) &&
+        (data.status in ['active', 'suspended', 'trial']) &&
+        isOptString(data, 'logo_url', 2000) &&
+        isOptString(data, 'whatsapp_number', 30) &&
+        isOptString(data, 'phone', 30) &&
+        isOptString(data, 'address', 300) &&
+        isOptString(data, 'primary_color', 30) &&
+        isOptMap(data, 'theme') &&
+        isOptString(data, 'hero_image_url', 2000) &&
+        isOptNumber(data, 'hero_overlay_opacity') &&
+        isOptString(data, 'hero_overlay_color', 30) &&
+        isOptString(data, 'facebook_url', 2000) &&
+        isOptString(data, 'instagram_url', 2000) &&
+        isOptString(data, 'linkedin_url', 2000) &&
+        isOptString(data, 'tiktok_url', 2000) &&
+        isOptString(data, 'privacy_url', 2000) &&
+        isOptString(data, 'terms_url', 2000) &&
+        isOptString(data, 'updated_at', 50);
+    }
+
+    function isValidProfile(data) {
+      return isReqString(data, 'id', 1, 100) &&
+        isReqString(data, 'organization_id', 1, 100) &&
+        isReqString(data, 'full_name', 1, 150) &&
+        isReqString(data, 'created_at', 1, 50) &&
+        isValidEmail(data.email) &&
+        (data.role in ['super_admin', 'tenant_admin', 'agent']) &&
+        (data.status in ['active', 'inactive']) &&
+        isOptString(data, 'phone', 30) &&
+        isOptString(data, 'avatar_url', 2000) &&
+        isOptString(data, 'updated_at', 50);
+    }
+
+    function isValidProperty(data) {
+      return isReqString(data, 'organization_id', 1, 100) &&
+        isReqString(data, 'slug', 1, 200) &&
+        isReqString(data, 'title', 1, 200) &&
+        isReqString(data, 'currency', 1, 10) &&
+        isReqString(data, 'created_at', 1, 50) &&
+        (data.property_type in ['casa', 'departamento', 'terreno', 'local', 'oficina', 'bodega', 'rancho', 'otro']) &&
+        (data.operation_type in ['venta', 'renta', 'ambas']) &&
+        (data.status in ['disponible', 'apartada', 'vendida', 'rentada', 'baja']) &&
+        ('publish_prices' in data && data.publish_prices is bool) &&
+        isOptString(data, 'id', 100) &&
+        isOptString(data, 'agent_id', 100) &&
+        isOptString(data, 'owner_id', 100) &&
+        isOptString(data, 'internal_id', 100) &&
+        isOptString(data, 'folio', 100) &&
+        isOptString(data, 'description', 10000) &&
+        isOptNumber(data, 'price') &&
+        isOptNumber(data, 'sale_price') &&
+        isOptNumber(data, 'rent_price') &&
+        isOptString(data, 'sale_currency', 10) &&
+        isOptString(data, 'rent_currency', 10) &&
+        isOptNumber(data, 'maintenance_fee_monthly') &&
+        isOptNumber(data, 'bedrooms') &&
+        isOptNumber(data, 'bathrooms') &&
+        isOptNumber(data, 'half_bathrooms') &&
+        isOptNumber(data, 'parking_spaces') &&
+        isOptNumber(data, 'construction_area_m2') &&
+        isOptNumber(data, 'land_area_m2') &&
+        isOptNumber(data, 'floors_in_building') &&
+        isOptNumber(data, 'unit_floor') &&
+        isOptNumber(data, 'year_built') &&
+        isOptString(data, 'address_street', 200) &&
+        isOptString(data, 'address_ext_number', 50) &&
+        isOptString(data, 'address_int_number', 50) &&
+        isOptString(data, 'colonia', 150) &&
+        isOptString(data, 'city', 150) &&
+        isOptString(data, 'state', 150) &&
+        isOptString(data, 'zip_code', 20) &&
+        isOptString(data, 'country', 100) &&
+        isOptString(data, 'state_id', 100) &&
+        isOptString(data, 'city_id', 100) &&
+        isOptNumber(data, 'public_latitude') &&
+        isOptNumber(data, 'public_longitude') &&
+        (!( 'location_precision' in data ) || data.location_precision == null || data.location_precision in ['exact', 'approximate']) &&
+        isOptBool(data, 'show_exact_location') &&
+        isOptList(data, 'amenity_ids', 100) &&
+        isOptList(data, 'images', 50) &&
+        isOptString(data, 'video_url', 2000) &&
+        isOptString(data, 'virtual_tour_url', 2000) &&
+        isOptBool(data, 'featured') &&
+        isOptNumber(data, 'views_count') &&
+        isOptString(data, 'updated_at', 50);
+    }
+
+    function isValidContact(data) {
+      return isReqString(data, 'organization_id', 1, 100) &&
+        isReqString(data, 'full_name', 1, 150) &&
+        isReqString(data, 'created_at', 1, 50) &&
+        (data.source in ['portal_web', 'facebook', 'directo', 'referido', 'otro']) &&
+        (data.status in ['nuevo', 'en_seguimiento', 'calificado', 'cerrado', 'descartado']) &&
+        isOptString(data, 'id', 100) &&
+        isOptString(data, 'agent_id', 100) &&
+        isOptString(data, 'phone', 30) &&
+        isValidOptEmail(data, 'email') &&
+        (!('interest_type' in data) || data.interest_type == null || data.interest_type in ['compra', 'renta', 'venta']) &&
+        isOptNumber(data, 'budget_min') &&
+        isOptNumber(data, 'budget_max') &&
+        isOptString(data, 'property_id', 100) &&
+        isOptString(data, 'notes', 3000) &&
+        isOptString(data, 'updated_at', 50);
+    }
+
+    function isValidPropertyOwner(data) {
+      return isReqString(data, 'organization_id', 1, 100) &&
+        isReqString(data, 'full_name', 1, 150) &&
+        isReqString(data, 'created_at', 1, 50) &&
+        isOptString(data, 'id', 100) &&
+        isOptString(data, 'phone', 30) &&
+        isValidOptEmail(data, 'email') &&
+        isOptString(data, 'tax_id', 50) &&
+        isOptString(data, 'notes', 3000) &&
+        isOptString(data, 'updated_at', 50);
+    }
+
+    function isValidActivity(data) {
+      return isReqString(data, 'organization_id', 1, 100) &&
+        isReqString(data, 'description', 1, 2000) &&
+        isReqString(data, 'created_at', 1, 50) &&
+        (data.type in ['llamada', 'reunion', 'visita', 'seguimiento', 'tarea', 'otro']) &&
+        (data.status in ['pendiente', 'completada', 'cancelada']) &&
+        isOptString(data, 'id', 100) &&
+        isOptString(data, 'agent_id', 100) &&
+        isOptString(data, 'assigned_to', 100) &&
+        isOptString(data, 'property_id', 100) &&
+        isOptString(data, 'contact_id', 100) &&
+        isOptString(data, 'owner_id', 100) &&
+        isOptString(data, 'scheduled_at', 50) &&
+        isOptString(data, 'completed_at', 50) &&
+        isOptString(data, 'notes', 3000) &&
+        isOptString(data, 'updated_at', 50);
+    }
+
+    function isValidPropertyDocument(data) {
+      return isReqString(data, 'organization_id', 1, 100) &&
+        isReqString(data, 'property_id', 1, 100) &&
+        isReqString(data, 'category', 1, 100) &&
+        isReqString(data, 'document_type', 1, 100) &&
+        isReqString(data, 'created_at', 1, 50) &&
+        (data.status in ['pendiente', 'en_revision', 'aprobado', 'rechazado']) &&
+        isOptString(data, 'id', 100) &&
+        isOptString(data, 'file_path', 500) &&
+        isOptString(data, 'file_url', 2000) &&
+        isOptString(data, 'notes', 3000) &&
+        isOptString(data, 'uploaded_by', 100) &&
+        isOptString(data, 'uploaded_at', 50) &&
+        isOptString(data, 'updated_at', 50);
+    }
+
+    function isValidPropertyInquiry(data) {
+      return isReqString(data, 'organization_id', 1, 100) &&
+        isReqString(data, 'property_id', 1, 100) &&
+        isReqString(data, 'name', 1, 100) &&
+        isReqString(data, 'phone', 1, 30) &&
+        isReqString(data, 'created_at', 1, 50) &&
+        isOptString(data, 'id', 100) &&
+        isOptString(data, 'contact_id', 100) &&
+        isValidOptEmail(data, 'email') &&
+        isOptString(data, 'message', 2000) &&
+        isOptString(data, 'updated_at', 50);
+    }
+
+    // ===============================================================
+    // Collection Match Rules
+    // ===============================================================
+
+    // 1. /organizations/{orgId}
+    // Public read for tenant branding, secure writes for super_admin or tenant_admin
+    match /organizations/{orgId} {
+      allow read: if true;
+
+      allow create: if (isSuperAdmin() || isTenantAdmin(orgId)) &&
+        isValidOrganization(request.resource.data) &&
+        request.resource.data.id == orgId;
+
+      allow update: if (isSuperAdmin() || isTenantAdmin(orgId)) &&
+        isValidOrganization(request.resource.data) &&
+        request.resource.data.id == resource.data.id &&
+        request.resource.data.created_at == resource.data.created_at;
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // 2. /profiles/{userId}
+    // Individual agent/admin profiles. Documents keyed by Firebase Auth UID.
+    match /profiles/{userId} {
+      allow get: if isAuthenticated() && (
+        request.auth.uid == userId ||
+        isSuperAdmin() ||
+        (hasCurrentUserProfile() && resource.data.organization_id == currentUserProfile().organization_id)
+      );
+
+      allow list: if isAuthenticated() && (
+        isSuperAdmin() ||
+        (hasCurrentUserProfile() && resource.data.organization_id == currentUserProfile().organization_id)
+      );
+
+      allow create: if isAuthenticated() &&
+        isValidProfile(request.resource.data) &&
+        request.resource.data.id == userId &&
+        (
+          isSuperAdmin() ||
+          (
+            isTenantAdmin(request.resource.data.organization_id) &&
+            request.resource.data.role in ['tenant_admin', 'agent']
+          ) ||
+          (
+            isOwner(userId) &&
+            request.resource.data.role == 'agent'
+          )
+        );
+
+      allow update: if isAuthenticated() &&
+        isValidProfile(request.resource.data) &&
+        request.resource.data.id == resource.data.id &&
+        request.resource.data.created_at == resource.data.created_at &&
+        (
+          isSuperAdmin() ||
+          (
+            isTenantAdmin(resource.data.organization_id) &&
+            resource.data.role != 'super_admin' &&
+            request.resource.data.role in ['tenant_admin', 'agent'] &&
+            request.resource.data.organization_id == resource.data.organization_id
+          ) ||
+          (
+            isOwner(userId) &&
+            request.resource.data.organization_id == resource.data.organization_id &&
+            request.resource.data.role == resource.data.role &&
+            request.resource.data.status == resource.data.status
+          )
+        );
+
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        (
+          isTenantAdmin(resource.data.organization_id) &&
+          resource.data.role != 'super_admin' &&
+          request.auth.uid != userId
+        )
+      );
+    }
+
+    // 3. /properties/{propertyId}
+    // Real estate listings. Public read when available, full tenant read/write.
+    match /properties/{propertyId} {
+      allow read: if resource.data.status == 'disponible' ||
+        isOrgMember(resource.data.organization_id);
+
+      allow create: if isOrgMember(request.resource.data.organization_id) &&
+        isValidProperty(request.resource.data) &&
+        (!('id' in request.resource.data) || request.resource.data.id == propertyId);
+
+      allow update: if isOrgMember(resource.data.organization_id) &&
+        request.resource.data.organization_id == resource.data.organization_id &&
+        isValidProperty(request.resource.data) &&
+        (!('id' in request.resource.data) || request.resource.data.id == resource.data.id) &&
+        request.resource.data.created_at == resource.data.created_at;
+
+      allow delete: if isOrgMember(resource.data.organization_id);
+    }
+
+    // 4. /contacts/{contactId}
+    // CRM leads and prospects. Public web/lead capture, private to tenant members.
+    match /contacts/{contactId} {
+      allow read: if isOrgMember(resource.data.organization_id);
+
+      allow create: if (
+        // Public lead capture from web portals or landing forms
+        (
+          request.resource.data.source in ['portal_web', 'facebook'] &&
+          request.resource.data.status == 'nuevo' &&
+          isValidContact(request.resource.data)
+        ) ||
+        // Authenticated creation by agency staff
+        (
+          isOrgMember(request.resource.data.organization_id) &&
+          isValidContact(request.resource.data)
+        )
+      ) && (!('id' in request.resource.data) || request.resource.data.id == contactId);
+
+      allow update: if isOrgMember(resource.data.organization_id) &&
+        request.resource.data.organization_id == resource.data.organization_id &&
+        isValidContact(request.resource.data) &&
+        (!('id' in request.resource.data) || request.resource.data.id == resource.data.id) &&
+        request.resource.data.created_at == resource.data.created_at;
+
+      allow delete: if isOrgMember(resource.data.organization_id);
+    }
+
+    // 5. /property_owners/{ownerId}
+    // Property legal/commercial owners. Private to organization members.
+    match /property_owners/{ownerId} {
+      allow read: if isOrgMember(resource.data.organization_id);
+
+      allow create: if isOrgMember(request.resource.data.organization_id) &&
+        isValidPropertyOwner(request.resource.data) &&
+        (!('id' in request.resource.data) || request.resource.data.id == ownerId);
+
+      allow update: if isOrgMember(resource.data.organization_id) &&
+        request.resource.data.organization_id == resource.data.organization_id &&
+        isValidPropertyOwner(request.resource.data) &&
+        (!('id' in request.resource.data) || request.resource.data.id == resource.data.id) &&
+        request.resource.data.created_at == resource.data.created_at;
+
+      allow delete: if isOrgMember(resource.data.organization_id);
+    }
+
+    // 6. /activities/{activityId}
+    // CRM appointments, calls, and tasks. Private to organization members.
+    match /activities/{activityId} {
+      allow read: if isOrgMember(resource.data.organization_id);
+
+      allow create: if isOrgMember(request.resource.data.organization_id) &&
+        isValidActivity(request.resource.data) &&
+        (!('id' in request.resource.data) || request.resource.data.id == activityId);
+
+      allow update: if isOrgMember(resource.data.organization_id) &&
+        request.resource.data.organization_id == resource.data.organization_id &&
+        isValidActivity(request.resource.data) &&
+        (!('id' in request.resource.data) || request.resource.data.id == resource.data.id) &&
+        request.resource.data.created_at == resource.data.created_at;
+
+      allow delete: if isOrgMember(resource.data.organization_id);
+    }
+
+    // 7. /property_documents/{docId}
+    // Property legal records and documents. Private to organization members.
+    match /property_documents/{docId} {
+      allow read: if isOrgMember(resource.data.organization_id);
+
+      allow create: if isOrgMember(request.resource.data.organization_id) &&
+        isValidPropertyDocument(request.resource.data) &&
+        (!('id' in request.resource.data) || request.resource.data.id == docId);
+
+      allow update: if isOrgMember(resource.data.organization_id) &&
+        request.resource.data.organization_id == resource.data.organization_id &&
+        isValidPropertyDocument(request.resource.data) &&
+        (!('id' in request.resource.data) || request.resource.data.id == resource.data.id) &&
+        request.resource.data.created_at == resource.data.created_at;
+
+      allow delete: if isOrgMember(resource.data.organization_id);
+    }
+
+    // 8. /property_inquiries/{inquiryId}
+    // Web property questions. Public creation, internal organization management.
+    match /property_inquiries/{inquiryId} {
+      allow read: if isOrgMember(resource.data.organization_id);
+
+      allow create: if isValidPropertyInquiry(request.resource.data) &&
+        (!('id' in request.resource.data) || request.resource.data.id == inquiryId);
+
+      allow update: if isOrgMember(resource.data.organization_id) &&
+        request.resource.data.organization_id == resource.data.organization_id &&
+        isValidPropertyInquiry(request.resource.data) &&
+        (!('id' in request.resource.data) || request.resource.data.id == resource.data.id) &&
+        request.resource.data.created_at == resource.data.created_at;
+
+      allow delete: if isOrgMember(resource.data.organization_id);
+    }
+
+    // Default deny for all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

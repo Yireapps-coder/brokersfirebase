@@ -1,0 +1,27 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Property images: Public read, authenticated upload
+    match /property-images/{orgId}/{propertyId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Property documents: Only authenticated team members
+    match /property-documents/{orgId}/{propertyId}/{allPaths=**} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // General fallback for agency assets (logos, branding)
+    match /agencies/{orgId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+  }
+}
