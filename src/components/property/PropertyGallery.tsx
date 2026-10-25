@@ -43,7 +43,12 @@ export function PropertyGallery({ images, title, city }: { images: string[]; tit
         setApi={setApi}
         opts={{
           loop: images.length > 1,
-          watchDrag: (_api, event) => event.type !== "mousedown",
+          watchDrag: false,
+          breakpoints: {
+            "(max-width: 768px)": {
+              watchDrag: (_api, event) => event.type.startsWith("touch"),
+            },
+          },
         }}
         className="overflow-hidden rounded-xl border border-border"
       >
@@ -53,8 +58,9 @@ export function PropertyGallery({ images, title, city }: { images: string[]; tit
               <img
                 src={src}
                 alt={`${altBase} — imagen ${i + 1}`}
-                className="aspect-[4/3] w-full object-cover sm:aspect-[16/9]"
+                className="aspect-[4/3] w-full select-none object-cover sm:aspect-[16/9]"
                 loading={i === 0 ? "eager" : "lazy"}
+                draggable={false}
               />
             </CarouselItem>
           ))}
@@ -101,8 +107,9 @@ export function PropertyGallery({ images, title, city }: { images: string[]; tit
               <img
                 src={src}
                 alt={`${altBase} — miniatura ${i + 1}`}
-                className="h-full w-full object-cover"
+                className="h-full w-full select-none object-cover"
                 loading="lazy"
+                draggable={false}
               />
             </button>
           ))}
