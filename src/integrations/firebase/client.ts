@@ -3,13 +3,15 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
+const env = typeof import.meta !== "undefined" && import.meta.env ? import.meta.env : ({} as Record<string, string>);
+
 export const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCuOhHJJp1Y9T75aXTdDzMhLLjlH8Qj4qw",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "brokersfirebase.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "brokersfirebase",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "brokersfirebase.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "53442260755",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:53442260755:web:828b4a3b0b86152c29b4e6",
+  apiKey: env.VITE_FIREBASE_API_KEY || "AIzaSyCuOhHJJp1Y9T75aXTdDzMhLLjlH8Qj4qw",
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || "brokersfirebase.firebaseapp.com",
+  projectId: env.VITE_FIREBASE_PROJECT_ID || "brokersfirebase",
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || "brokersfirebase.firebasestorage.app",
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || "53442260755",
+  appId: env.VITE_FIREBASE_APP_ID || "1:53442260755:web:828b4a3b0b86152c29b4e6",
 };
 
 // Singleton principal para el frontend

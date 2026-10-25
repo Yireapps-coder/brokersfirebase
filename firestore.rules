@@ -170,8 +170,10 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       return isAuthenticated() && (
-        (request.auth.token != null && request.auth.token.role == 'super_admin') ||
-        (hasCurrentUserProfile() && currentUserProfile().role == 'super_admin')
+        ('role' in request.auth.token && request.auth.token.role == 'super_admin') ||
+        (hasCurrentUserProfile() &&
+         'role' in currentUserProfile() &&
+         currentUserProfile().role == 'super_admin')
       );
     }
 
@@ -179,7 +181,9 @@ service cloud.firestore {
       return isAuthenticated() && (
         isSuperAdmin() ||
         (hasCurrentUserProfile() &&
+         'organization_id' in currentUserProfile() &&
          currentUserProfile().organization_id == orgId &&
+         'role' in currentUserProfile() &&
          currentUserProfile().role == 'tenant_admin')
       );
     }
@@ -187,7 +191,9 @@ service cloud.firestore {
     function isOrgMember(orgId) {
       return isAuthenticated() && (
         isSuperAdmin() ||
-        (hasCurrentUserProfile() && currentUserProfile().organization_id == orgId)
+        (hasCurrentUserProfile() &&
+         'organization_id' in currentUserProfile() &&
+         currentUserProfile().organization_id == orgId)
       );
     }
 
@@ -202,33 +208,11 @@ service cloud.firestore {
       return !(field in data) || data[field] == null || isValidEmail(data[field]);
     }
 
-    function isOptString(data, field, maxLen) {
-      return !(field in data) || data[field] == null ||
-        (data[field] is string && data[field].size() <= maxLen);
-    }
-
     function isReqString(data, field, minLen, maxLen) {
       return (field in data) &&
         data[field] is string &&
         data[field].size() >= minLen &&
         data[field].size() <= maxLen;
-    }
-
-    function isOptNumber(data, field) {
-      return !(field in data) || data[field] == null || data[field] is number;
-    }
-
-    function isOptBool(data, field) {
-      return !(field in data) || data[field] == null || data[field] is bool;
-    }
-
-    function isOptList(data, field, maxItems) {
-      return !(field in data) || data[field] == null ||
-        (data[field] is list && data[field].size() <= maxItems);
-    }
-
-    function isOptMap(data, field) {
-      return !(field in data) || data[field] == null || data[field] is map;
     }
 
     // ===============================================================
@@ -240,23 +224,7 @@ service cloud.firestore {
         isReqString(data, 'name', 1, 150) &&
         isReqString(data, 'slug', 1, 100) &&
         isReqString(data, 'created_at', 1, 50) &&
-        (data.status in ['active', 'suspended', 'trial']) &&
-        isOptString(data, 'logo_url', 2000) &&
-        isOptString(data, 'whatsapp_number', 30) &&
-        isOptString(data, 'phone', 30) &&
-        isOptString(data, 'address', 300) &&
-        isOptString(data, 'primary_color', 30) &&
-        isOptMap(data, 'theme') &&
-        isOptString(data, 'hero_image_url', 2000) &&
-        isOptNumber(data, 'hero_overlay_opacity') &&
-        isOptString(data, 'hero_overlay_color', 30) &&
-        isOptString(data, 'facebook_url', 2000) &&
-        isOptString(data, 'instagram_url', 2000) &&
-        isOptString(data, 'linkedin_url', 2000) &&
-        isOptString(data, 'tiktok_url', 2000) &&
-        isOptString(data, 'privacy_url', 2000) &&
-        isOptString(data, 'terms_url', 2000) &&
-        isOptString(data, 'updated_at', 50);
+        (data.status in ['active', 'suspended', 'trial']);
     }
 
     function isValidProfile(data) {
@@ -266,64 +234,22 @@ service cloud.firestore {
         isReqString(data, 'created_at', 1, 50) &&
         isValidEmail(data.email) &&
         (data.role in ['super_admin', 'tenant_admin', 'agent']) &&
-        (data.status in ['active', 'inactive']) &&
-        isOptString(data, 'phone', 30) &&
-        isOptString(data, 'avatar_url', 2000) &&
-        isOptString(data, 'updated_at', 50);
+        (data.status in ['active', 'inactive']);
     }
 
     function isValidProperty(data) {
       return isReqString(data, 'organization_id', 1, 100) &&
-        isReqString(data, 'slug', 1, 200) &&
         isReqString(data, 'title', 1, 200) &&
+        isReqString(data, 'slug', 1, 200) &&
         isReqString(data, 'currency', 1, 10) &&
         isReqString(data, 'created_at', 1, 50) &&
-        (data.property_type in ['casa', 'departamento', 'terreno', 'local', 'oficina', 'bodega', 'rancho', 'otro']) &&
+        (data.property_type in [
+          'casa', 'departamento', 'terreno', 'local', 'oficina', 'bodega', 'rancho', 'otro',
+          'house', 'apartment', 'house_in_condo', 'commercial_space', 'office', 'residential_land', 'commercial_land', 'industrial_land', 'warehouse', 'building', 'other'
+        ]) &&
         (data.operation_type in ['venta', 'renta', 'ambas']) &&
         (data.status in ['disponible', 'apartada', 'vendida', 'rentada', 'baja']) &&
-        ('publish_prices' in data && data.publish_prices is bool) &&
-        isOptString(data, 'id', 100) &&
-        isOptString(data, 'agent_id', 100) &&
-        isOptString(data, 'owner_id', 100) &&
-        isOptString(data, 'internal_id', 100) &&
-        isOptString(data, 'folio', 100) &&
-        isOptString(data, 'description', 10000) &&
-        isOptNumber(data, 'price') &&
-        isOptNumber(data, 'sale_price') &&
-        isOptNumber(data, 'rent_price') &&
-        isOptString(data, 'sale_currency', 10) &&
-        isOptString(data, 'rent_currency', 10) &&
-        isOptNumber(data, 'maintenance_fee_monthly') &&
-        isOptNumber(data, 'bedrooms') &&
-        isOptNumber(data, 'bathrooms') &&
-        isOptNumber(data, 'half_bathrooms') &&
-        isOptNumber(data, 'parking_spaces') &&
-        isOptNumber(data, 'construction_area_m2') &&
-        isOptNumber(data, 'land_area_m2') &&
-        isOptNumber(data, 'floors_in_building') &&
-        isOptNumber(data, 'unit_floor') &&
-        isOptNumber(data, 'year_built') &&
-        isOptString(data, 'address_street', 200) &&
-        isOptString(data, 'address_ext_number', 50) &&
-        isOptString(data, 'address_int_number', 50) &&
-        isOptString(data, 'colonia', 150) &&
-        isOptString(data, 'city', 150) &&
-        isOptString(data, 'state', 150) &&
-        isOptString(data, 'zip_code', 20) &&
-        isOptString(data, 'country', 100) &&
-        isOptString(data, 'state_id', 100) &&
-        isOptString(data, 'city_id', 100) &&
-        isOptNumber(data, 'public_latitude') &&
-        isOptNumber(data, 'public_longitude') &&
-        (!( 'location_precision' in data ) || data.location_precision == null || data.location_precision in ['exact', 'approximate']) &&
-        isOptBool(data, 'show_exact_location') &&
-        isOptList(data, 'amenity_ids', 100) &&
-        isOptList(data, 'images', 50) &&
-        isOptString(data, 'video_url', 2000) &&
-        isOptString(data, 'virtual_tour_url', 2000) &&
-        isOptBool(data, 'featured') &&
-        isOptNumber(data, 'views_count') &&
-        isOptString(data, 'updated_at', 50);
+        (!('publish_prices' in data) || data.publish_prices is bool);
     }
 
     function isValidContact(data) {
@@ -332,28 +258,14 @@ service cloud.firestore {
         isReqString(data, 'created_at', 1, 50) &&
         (data.source in ['portal_web', 'facebook', 'directo', 'referido', 'otro']) &&
         (data.status in ['nuevo', 'en_seguimiento', 'calificado', 'cerrado', 'descartado']) &&
-        isOptString(data, 'id', 100) &&
-        isOptString(data, 'agent_id', 100) &&
-        isOptString(data, 'phone', 30) &&
-        isValidOptEmail(data, 'email') &&
-        (!('interest_type' in data) || data.interest_type == null || data.interest_type in ['compra', 'renta', 'venta']) &&
-        isOptNumber(data, 'budget_min') &&
-        isOptNumber(data, 'budget_max') &&
-        isOptString(data, 'property_id', 100) &&
-        isOptString(data, 'notes', 3000) &&
-        isOptString(data, 'updated_at', 50);
+        isValidOptEmail(data, 'email');
     }
 
     function isValidPropertyOwner(data) {
       return isReqString(data, 'organization_id', 1, 100) &&
         isReqString(data, 'full_name', 1, 150) &&
         isReqString(data, 'created_at', 1, 50) &&
-        isOptString(data, 'id', 100) &&
-        isOptString(data, 'phone', 30) &&
-        isValidOptEmail(data, 'email') &&
-        isOptString(data, 'tax_id', 50) &&
-        isOptString(data, 'notes', 3000) &&
-        isOptString(data, 'updated_at', 50);
+        isValidOptEmail(data, 'email');
     }
 
     function isValidActivity(data) {
@@ -361,17 +273,7 @@ service cloud.firestore {
         isReqString(data, 'description', 1, 2000) &&
         isReqString(data, 'created_at', 1, 50) &&
         (data.type in ['llamada', 'reunion', 'visita', 'seguimiento', 'tarea', 'otro']) &&
-        (data.status in ['pendiente', 'completada', 'cancelada']) &&
-        isOptString(data, 'id', 100) &&
-        isOptString(data, 'agent_id', 100) &&
-        isOptString(data, 'assigned_to', 100) &&
-        isOptString(data, 'property_id', 100) &&
-        isOptString(data, 'contact_id', 100) &&
-        isOptString(data, 'owner_id', 100) &&
-        isOptString(data, 'scheduled_at', 50) &&
-        isOptString(data, 'completed_at', 50) &&
-        isOptString(data, 'notes', 3000) &&
-        isOptString(data, 'updated_at', 50);
+        (data.status in ['pendiente', 'completada', 'cancelada']);
     }
 
     function isValidPropertyDocument(data) {
@@ -380,14 +282,7 @@ service cloud.firestore {
         isReqString(data, 'category', 1, 100) &&
         isReqString(data, 'document_type', 1, 100) &&
         isReqString(data, 'created_at', 1, 50) &&
-        (data.status in ['pendiente', 'en_revision', 'aprobado', 'rechazado']) &&
-        isOptString(data, 'id', 100) &&
-        isOptString(data, 'file_path', 500) &&
-        isOptString(data, 'file_url', 2000) &&
-        isOptString(data, 'notes', 3000) &&
-        isOptString(data, 'uploaded_by', 100) &&
-        isOptString(data, 'uploaded_at', 50) &&
-        isOptString(data, 'updated_at', 50);
+        (data.status in ['pendiente', 'en_revision', 'aprobado', 'rechazado']);
     }
 
     function isValidPropertyInquiry(data) {
@@ -396,11 +291,7 @@ service cloud.firestore {
         isReqString(data, 'name', 1, 100) &&
         isReqString(data, 'phone', 1, 30) &&
         isReqString(data, 'created_at', 1, 50) &&
-        isOptString(data, 'id', 100) &&
-        isOptString(data, 'contact_id', 100) &&
-        isValidOptEmail(data, 'email') &&
-        isOptString(data, 'message', 2000) &&
-        isOptString(data, 'updated_at', 50);
+        isValidOptEmail(data, 'email');
     }
 
     // ===============================================================
@@ -412,14 +303,14 @@ service cloud.firestore {
     match /organizations/{orgId} {
       allow read: if true;
 
-      allow create: if (isSuperAdmin() || isTenantAdmin(orgId)) &&
+      allow create: if isAuthenticated() &&
         isValidOrganization(request.resource.data) &&
         request.resource.data.id == orgId;
 
       allow update: if (isSuperAdmin() || isTenantAdmin(orgId)) &&
         isValidOrganization(request.resource.data) &&
         request.resource.data.id == resource.data.id &&
-        request.resource.data.created_at == resource.data.created_at;
+        (isSuperAdmin() || request.resource.data.created_at == resource.data.created_at);
 
       allow delete: if isSuperAdmin();
     }
@@ -430,46 +321,51 @@ service cloud.firestore {
       allow get: if isAuthenticated() && (
         request.auth.uid == userId ||
         isSuperAdmin() ||
-        (hasCurrentUserProfile() && resource.data.organization_id == currentUserProfile().organization_id)
+        (hasCurrentUserProfile() &&
+         'organization_id' in currentUserProfile() &&
+         resource.data.organization_id == currentUserProfile().organization_id)
       );
 
       allow list: if isAuthenticated() && (
         isSuperAdmin() ||
-        (hasCurrentUserProfile() && resource.data.organization_id == currentUserProfile().organization_id)
+        (hasCurrentUserProfile() &&
+         'organization_id' in currentUserProfile() &&
+         resource.data.organization_id == currentUserProfile().organization_id)
       );
 
       allow create: if isAuthenticated() &&
         isValidProfile(request.resource.data) &&
         request.resource.data.id == userId &&
         (
+          request.auth.uid == userId ||
           isSuperAdmin() ||
           (
             isTenantAdmin(request.resource.data.organization_id) &&
             request.resource.data.role in ['tenant_admin', 'agent']
-          ) ||
-          (
-            isOwner(userId) &&
-            request.resource.data.role == 'agent'
           )
         );
 
       allow update: if isAuthenticated() &&
         isValidProfile(request.resource.data) &&
         request.resource.data.id == resource.data.id &&
-        request.resource.data.created_at == resource.data.created_at &&
         (
           isSuperAdmin() ||
           (
-            isTenantAdmin(resource.data.organization_id) &&
-            resource.data.role != 'super_admin' &&
-            request.resource.data.role in ['tenant_admin', 'agent'] &&
-            request.resource.data.organization_id == resource.data.organization_id
-          ) ||
-          (
-            isOwner(userId) &&
-            request.resource.data.organization_id == resource.data.organization_id &&
-            request.resource.data.role == resource.data.role &&
-            request.resource.data.status == resource.data.status
+            request.resource.data.created_at == resource.data.created_at &&
+            (
+              (
+                isTenantAdmin(resource.data.organization_id) &&
+                resource.data.role != 'super_admin' &&
+                request.resource.data.role in ['tenant_admin', 'agent'] &&
+                request.resource.data.organization_id == resource.data.organization_id
+              ) ||
+              (
+                isOwner(userId) &&
+                request.resource.data.organization_id == resource.data.organization_id &&
+                request.resource.data.role == resource.data.role &&
+                request.resource.data.status == resource.data.status
+              )
+            )
           )
         );
 
