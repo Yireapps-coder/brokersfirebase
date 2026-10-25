@@ -75,7 +75,7 @@ const AMENITY_SECTION_ORDER = [
 export const Route = createFileRoute("/propiedades/$slug")({
   loader: async ({ params, context }) => {
     const [property] = await Promise.all([
-      getPublicProperty({ data: { identifier: params.slug } }),
+      getPublicProperty(params.slug),
       context.queryClient.ensureQueryData(publicOrgQuery()),
     ]);
     if (!property) throw notFound();

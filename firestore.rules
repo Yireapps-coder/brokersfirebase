@@ -243,10 +243,7 @@ service cloud.firestore {
         isReqString(data, 'slug', 1, 200) &&
         isReqString(data, 'currency', 1, 10) &&
         isReqString(data, 'created_at', 1, 50) &&
-        (data.property_type in [
-          'casa', 'departamento', 'terreno', 'local', 'oficina', 'bodega', 'rancho', 'otro',
-          'house', 'apartment', 'house_in_condo', 'commercial_space', 'office', 'residential_land', 'commercial_land', 'industrial_land', 'warehouse', 'building', 'other'
-        ]) &&
+        isReqString(data, 'property_type', 1, 100) &&
         (data.operation_type in ['venta', 'renta', 'ambas']) &&
         (data.status in ['disponible', 'apartada', 'vendida', 'rentada', 'baja']) &&
         (!('publish_prices' in data) || data.publish_prices is bool);

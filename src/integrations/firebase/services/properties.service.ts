@@ -59,14 +59,25 @@ export async function getPropertyById(id: string): Promise<Property | null> {
 }
 
 export async function getPropertyBySlug(slug: string): Promise<Property | null> {
-  const q = query(collection(db, COLLECTION), where("slug", "==", slug), limit(1));
+  const q = query(
+    collection(db, COLLECTION),
+    where("status", "==", "disponible"),
+    where("slug", "==", slug),
+    limit(1)
+  );
   const snap = await getDocs(q);
-  if (snap.empty) {
-    // Si no lo encuentra por slug, intentamos buscar por ID directo
-    return getPropertyById(slug);
+  if (!snap.empty) {
+    const d = snap.docs[0];
+    return { id: d.id, ...d.data() } as Property;
   }
-  const d = snap.docs[0];
-  return { id: d.id, ...d.data() } as Property;
+  // Si no lo encuentra por slug, intentamos buscar por ID directo si parece un ID válido
+  try {
+    const byId = await getPropertyById(slug);
+    if (byId && byId.status === "disponible") return byId;
+  } catch {
+    // Si el documento no existe o no es público, retornar null limpiamente
+  }
+  return null;
 }
 
 export async function saveProperty(property: Partial<Property> & { organization_id: string }): Promise<string> {
