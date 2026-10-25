@@ -51,6 +51,14 @@ export async function getOrganizationByDomain(domain: string): Promise<Organizat
   return null;
 }
 
+export async function getFirstActiveOrganization(): Promise<Organization | null> {
+  const q = query(collection(db, COLLECTION), where("status", "==", "active"), limit(1));
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  const docSnap = snap.docs[0];
+  return { id: docSnap.id, ...docSnap.data() } as Organization;
+}
+
 export async function updateOrganization(
   orgId: string,
   data: Partial<Omit<Organization, "id" | "created_at">>

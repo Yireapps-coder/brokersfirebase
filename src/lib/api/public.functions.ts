@@ -7,6 +7,7 @@ import {
   getOrganizationById,
   getOrganizationBySlug,
   getOrganizationByDomain,
+  getFirstActiveOrganization,
 } from "@/integrations/firebase/services/organizations.service";
 import { getProfileById } from "@/integrations/firebase/services/team.service";
 import type { Organization, Property } from "@/integrations/firebase/types";
@@ -93,7 +94,11 @@ export async function getPublicOrg(): Promise<PublicOrg | null> {
   const org = await getOrganizationById(defaultOrgId);
   if (org) return org;
 
-  return await getOrganizationBySlug("inmobiliaria");
+  const orgBySlug = await getOrganizationBySlug("inmobiliaria");
+  if (orgBySlug) return orgBySlug;
+
+  // 4. Fallback final a la primera organización activa disponible
+  return await getFirstActiveOrganization();
 }
 
 export async function getHomeProperties(orgId?: string) {
